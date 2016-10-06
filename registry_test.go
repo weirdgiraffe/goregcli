@@ -31,3 +31,6 @@ func TestRegistryCreationn(t *testing.T) {
 		}
 	}
 }
+
+func TestRegistryImageList(t *testing.T) {
+}
