@@ -38,3 +38,25 @@ func NewRegistry(registryURL string) (*Registry, error) {
 	}
 	return &Registry{u.String()}, nil
 }
+
+func (r *Registry) getImageList() ([]Image, error) {
+	return []Image{}, fmt.Errorf("Not implemented")
+}
+
+// PrintImages prints images like docker images
+func (r *Registry) PrintImages() error {
+	images, err := r.getImageList()
+	if err != nil {
+		return err
+	}
+	for _, i := range images {
+		tags, err := i.getTagList()
+		if err != nil {
+			return fmt.Errorf("Failed '%v' : %v", i.Name, err)
+		}
+		for _, t := range tags {
+			fmt.Printf("%v\t%v\t%v\n", i.Name, t.Name, t.Digest)
+		}
+	}
+	return nil
+}
