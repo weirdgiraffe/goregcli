@@ -27,7 +27,10 @@ func TestRegistryCreationn(t *testing.T) {
 			t.Fatalf("Failed for %v : Registry is nil", tt.url)
 		}
 		if r.url != tt.expectedURL {
-			t.Errorf("Failed for %v : '%v' != '%v'", tt.url, r.url, tt.expectedURL)
+			t.Errorf("Failed for %v : '%v' != '%v'",
+				tt.url,
+				r.url,
+				tt.expectedURL)
 		}
 	}
 }
