@@ -1,15 +1,47 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 )
 
 const (
 	acceptHeader = "application/vnd.docker.distribution.manifest.v2+json"
 )
+
+// DebugHTTPRequests write dump of all http requests to stdout
+var DebugHTTPRequests = true
+
+// DebugHTTPResponses write dump of all http resposes to stdout
+var DebugHTTPResponses = true
+
+func debugDumpReq(req *http.Request) {
+	if DebugHTTPRequests == false {
+		return
+	}
+	b, err := httputil.DumpRequest(req, true)
+	if err == nil {
+		fmt.Println(string(b))
+	} else {
+		fmt.Println(err)
+	}
+}
+
+func debugDumpRes(res *http.Response) {
+	if DebugHTTPResponses == false {
+		return
+	}
+	b, err := httputil.DumpResponse(res, true)
+	if err == nil {
+		fmt.Println(string(b))
+	} else {
+		fmt.Println(err)
+	}
+}
 
 // Registry represents the whole Docker Registry
 type Registry struct {
@@ -52,28 +84,42 @@ func (r *Registry) getImageListResponse() (io.ReadCloser, error) {
 		return nil, err
 	}
 	req.Header.Set("Accept", acceptHeader)
+
+	debugDumpReq(req)
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get image list: %v", err)
 	}
+	debugDumpRes(res)
 	return res.Body, nil
 }
 
+func (r *Registry) decodeImageListResponse(body io.Reader) ([]Image, error) {
+	resjson := make(map[string]interface{})
+	decoder := json.NewDecoder(body)
+	err := decoder.Decode(&resjson)
+	if err != nil {
+		return []Image{}, fmt.Errorf(
+			"Failed to unmarshal ImageList Response: %v", err)
+	}
+	if irepos, ok := resjson["repositories"].([]interface{}); ok {
+		ret := []Image{}
+		for _, repo := range irepos {
+			ret = append(ret, Image{Name: repo.(string)})
+		}
+		return ret, nil
+	}
+	return []Image{}, fmt.Errorf(
+		"Malformed json in ImageList Response: %v", resjson)
+}
+
 func (r *Registry) getImageList() ([]Image, error) {
-	requestURL := fmt.Sprintf("%s/v2/_catalog", r.url)
-	req, err := http.NewRequest("GET", requestURL, nil)
+	resBody, err := r.getImageListResponse()
 	if err != nil {
-		return []Image{}, nil
-
+		return []Image{}, err
 	}
-	req.Header.Set("Accept", acceptHeader)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get image list: %v", err)
-	}
-	defer res.Body.Close()
-
-	return []Image{}, fmt.Errorf("Not implemented")
+	defer resBody.Close()
+	return r.decodeImageListResponse(resBody)
 }
 
 // PrintImages prints images like docker images
