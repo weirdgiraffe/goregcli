@@ -2,7 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"net/url"
+)
+
+const (
+	acceptHeader = "application/vnd.docker.distribution.manifest.v2+json"
 )
 
 // Registry represents the whole Docker Registry
@@ -39,7 +45,34 @@ func NewRegistry(registryURL string) (*Registry, error) {
 	return &Registry{u.String()}, nil
 }
 
+func (r *Registry) getImageListResponse() (io.ReadCloser, error) {
+	requestURL := fmt.Sprintf("%s/v2/_catalog", r.url)
+	req, err := http.NewRequest("GET", requestURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Accept", acceptHeader)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get image list: %v", err)
+	}
+	return res.Body, nil
+}
+
 func (r *Registry) getImageList() ([]Image, error) {
+	requestURL := fmt.Sprintf("%s/v2/_catalog", r.url)
+	req, err := http.NewRequest("GET", requestURL, nil)
+	if err != nil {
+		return []Image{}, nil
+
+	}
+	req.Header.Set("Accept", acceptHeader)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get image list: %v", err)
+	}
+	defer res.Body.Close()
+
 	return []Image{}, fmt.Errorf("Not implemented")
 }
 
